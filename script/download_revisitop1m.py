@@ -37,6 +37,7 @@ def download_distractors(dataset_root, num_images):
                 image_path.rename(os.path.join(dataset_dir, image_name))
 
                 if cur_images == num_images:
+                    os.remove(dst_path)
                     print(f'>> [{cur_images}/{num_images}] Finished')
                     return
 
