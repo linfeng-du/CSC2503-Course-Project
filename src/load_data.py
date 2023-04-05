@@ -40,7 +40,7 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
         if self.descriptor_type != 'SIFT':
             return {
                 'image0': torch.from_numpy(image.astype(np.float32)).unsqueeze(0),
-                'image1': torch.from_numpy(image.astype(np.float32)).unsqueeze(0),
+                'image1': torch.from_numpy(warped.astype(np.float32)).unsqueeze(0),
                 'M': torch.from_numpy(M)
             }
 
@@ -52,7 +52,7 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
 
         return {
             'image0': torch.from_numpy(image.astype(np.float32)).unsqueeze(0),
-            'image1': torch.from_numpy(image.astype(np.float32)).unsqueeze(0),
+            'image1': torch.from_numpy(warped.astype(np.float32)).unsqueeze(0),
             'M': torch.from_numpy(M),
             'keypoints0': kpts0,
             'keypoints1': kpts1,
