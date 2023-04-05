@@ -11,7 +11,7 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
     default_config = {
         'dataset_dir': './dataset/revisitop1m',
         'resize_shape': [640, 480],
-        'descriptor_type': 'SIFT',
+        'descriptor': 'SIFT',
         'num_keypoints': 1024
     }
 
@@ -23,10 +23,10 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
         for filename in os.listdir(config['dataset_dir']):
             self.files.append(os.path.join(config['dataset_dir'], filename))
 
-        self.resize_shape = config['resize_shape']
-        self.descriptor_type = config['descriptor_type']
+        self.resize = config['resize']
+        self.descriptor = config['descriptor']
 
-        if self.descriptor_type == 'SIFT':
+        if self.descriptor == 'SIFT':
             self.num_keypoints = config['num_keypoints']
             self.sift = cv2.SIFT_create(nfeatures=self.num_keypoints)
 
@@ -37,7 +37,7 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
         image = cv2.imread(self.files[idx], cv2.IMREAD_GRAYSCALE)
         image, warped, M = self.get_image_pair(image)
 
-        if self.descriptor_type != 'SIFT':
+        if self.descriptor != 'SIFT':
             return {
                 'image0': torch.from_numpy(image.astype(np.float32)).unsqueeze(0),
                 'image1': torch.from_numpy(warped.astype(np.float32)).unsqueeze(0),
@@ -73,8 +73,8 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
         warped = cv2.warpPerspective(image, M, (w, h))
 
         # Resize images
-        image = cv2.resize(image, self.resize_shape)
-        warped = cv2.resize(warped, self.resize_shape)
+        image = cv2.resize(image, self.resize)
+        warped = cv2.resize(warped, self.resize)
 
         return image, warped, M
 

@@ -6,8 +6,8 @@ def parse_args():
 
     # HomographyEstimationDataset
     parser.add_argument('--num_keypoints', type=int, default=1024)
-    parser.add_argument('--resize_shape', type=int, nargs='+', default=[640, 480])
-    parser.add_argument('--descriptor_type', choices=['SIFT', 'SuperPoint'], default='SIFT')
+    parser.add_argument('--resize', type=int, nargs='+', default=[640, 480])
+    parser.add_argument('--descriptor', choices=['SIFT', 'SuperPoint'], default='SIFT')
 
     # SuperPoint
     parser.add_argument('--nms_radius', type=int, default=4)
