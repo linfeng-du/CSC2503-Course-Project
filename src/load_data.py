@@ -10,7 +10,7 @@ from .utils import pad_tensors
 class HomographyEstimationDataset(torch.utils.data.Dataset):
     default_config = {
         'dataset_dir': './dataset/revisitop1m',
-        'resize_shape': [640, 480],
+        'resize': [640, 480],
         'descriptor': 'SIFT',
         'num_keypoints': 1024
     }
