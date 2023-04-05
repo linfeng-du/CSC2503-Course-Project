@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 
 
 def get_matching_matrix(kpts0, kpts1, mask0, mask1, M):
@@ -7,61 +6,43 @@ def get_matching_matrix(kpts0, kpts1, mask0, mask1, M):
     device = kpts0.device
     b, n, _ = kpts0.size()
 
-    # Warp src -> dst
+    # Warp from kpts0 to kpts1 with homography using homogeneous coordiantes
     kpts0_src = torch.cat((kpts0, torch.ones(b, n, 1, device=device)), dim=-1)
     kpts0_dst = torch.bmm(M, kpts0_src.transpose(-2, -1)).transpose(-2, -1)
     kpts0_dst /= kpts0_dst[:, :, 2:3]
     kpts0 = kpts0_dst[:, :, :2]
 
-    # Calculate pairwise distances
+    # Calculate pairwise distances, fill masked positions with inf
     dists = torch.cdist(kpts0, kpts1)
+    dists.masked_fill_(mask0.unsqueeze(2) == 0, torch.inf)
+    dists.masked_fill_(mask1.unsqueeze(1) == 0, torch.inf)
 
-    # Constraint on true matches
-    #   1. reprojection error less than 3
-    #   2. alignment between src -> dst and dst -> src
+    # Apply constraints to get true matches
+    #   1. reprojection error is less than 3
+    #   2. being the argmin of row (kpts0 -> kpts1) and column (kpts1 -> kpts0) at the same time
+    #   3. not being at masked positions (in case no keypoints are being detected)
     con_rep = dists < 3
 
     con_row = torch.zeros(b, n, n, dtype=torch.bool, device=device)
-    con_row = torch.scatter(con_row, 2, torch.argmin(dists, dim=2).unsqueeze(2), 1)
+    con_row.scatter_(2, dists.argmin(dim=2).unsqueeze(2), 1)
 
     con_col = torch.zeros(b, n, n, dtype=torch.bool, device=device)
-    con_col = torch.scatter(con_col, 2, torch.argmin(dists, dim=1).unsqueeze(2), 1)
+    con_col.scatter_(1, dists.argmin(dim=1).unsqueeze(1), 1)
 
-    matches = con_rep & con_row & con_col
-    print(matches.sum())
+    # baddbmm_cuda only supports float type
+    con_mask = torch.bmm(mask0.unsqueeze(2).float(), mask1.unsqueeze(1).float()).bool()
 
-    # Add dustbins
-    matches = torch.cat((matches, ~(torch.sum(matches, dim=1).unsqueeze(1).bool())), dim=1)
-    matches = torch.cat((matches, ~(torch.sum(matches, dim=2).unsqueeze(2).bool())), dim=2)
+    matches = con_rep & con_row & con_col & con_mask
+
+    # Unmatched keypoints are matched to dustbins (set dustbin -> dustbin to 0)
+    dustbin_row = ~matches.sum(dim=2).bool()
+    matches = torch.cat((matches, dustbin_row.unsqueeze(2)), dim=2)
+
+    dustbin_col = ~matches.sum(dim=1).bool()
+    matches = torch.cat((matches, dustbin_col.unsqueeze(1)), dim=1)
+
     matches[:, -1, -1] = 0
-
-    mms = []
-    for dist in dists:
-        min01_val, min01 = torch.min(dist, axis=1)
-        min10_val, min10 = torch.min(dist, axis=0)
-        match0_flt1 = min10[min10_val < 3]
-
-        match0_flt2 = torch.where(min10[min01] == torch.arange(min01.shape[0], device=device))[0]
-
-        # Get true matches and mismatches
-        match0 = np.intersect1d(match0_flt1.cpu(), match0_flt2.cpu())
-        mismatch0 = np.setdiff1d(torch.arange(kpts0.shape[0], device=device).cpu(), match0)
-
-        match1 = min01[match0]
-        mismatch1 = np.setdiff1d(torch.arange(kpts1.shape[0], device=device).cpu(), match1.cpu())
-
-        # Build matching matrix
-        matchesx = torch.zeros((n + 1, n + 1), dtype=torch.bool)
-        matchesx[match0, match1] = 1
-        # matchesx[mismatch0, n] = 1
-        # matchesx[n, mismatch1] = 1
-
-        mms.append(matchesx)
-
-    matches2 = torch.stack(mms).cuda()
-    print(matches2.sum())
-
-    # return matches
+    return matches
 
 
 def pad_batched_tensors(batch, num_keypoints, ix):
