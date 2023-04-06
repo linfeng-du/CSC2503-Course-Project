@@ -1,3 +1,9 @@
+## Requirements
+- torch==1.13.0
+- numpy==1.23.5
+- opencv-python==4.7.0.72
+- matplotlib==3.6.2
+
 ## Dataset
 ### Oxford and Paris
 Download the first 100K distractor images in [revisitop1m](https://github.com/filipradenovic/revisitop). Unzip and place it to `./dataset/revisitop1m`.
