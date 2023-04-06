@@ -6,9 +6,9 @@ def parse_args():
 
     # HomographyEstimationDataset
     parser.add_argument('--dataset', choices=['Oxford and Paris', 'COCO'], default='Oxford and Paris')
-    parser.add_argument('--num_keypoints', type=int, default=1024)
     parser.add_argument('--resize', type=int, nargs='+', default=[640, 480])
     parser.add_argument('--descriptor', choices=['SIFT', 'SuperPoint'], default='SIFT')
+    parser.add_argument('--num_keypoints', type=int, default=1024)
 
     # SuperGlue
     parser.add_argument('--weights', choices=['none', 'indoor', 'outdoor'], default='none')
