@@ -24,5 +24,5 @@ python ./src/load_data.py --dataset "COCO" --descriptor SuperPoint --num_keypoin
 ## Running on CSLab Slurm cluster
 ```sh
 sinfo   # Check gpunode availability and partition info
-srun --partition ${partition} --nodelist ${gpunode} -c 4 --gres=gpu:1 --mem=8G --pty bash
+srun --partition ${partition} --nodelist ${gpunode} --cpus-per-task 4 --gres=gpu:1 --mem=8G --pty bash
 ```
