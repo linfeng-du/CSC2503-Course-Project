@@ -17,8 +17,8 @@ Extract features as a pre-processing step to alleviate dataloader bottleneck.
 python ./src/load_data.py --dataset "Oxford and Paris" --descriptor SIFT --num_keypoints 1024 --device cpu
 python ./src/load_data.py --dataset "Oxford and Paris" --descriptor SuperPoint --num_keypoints 512 --device cuda
 
-python ./src/load_data.py --dataset "COCO" --descriptor SIFT --num_keypoints 1024 --device cpu
-python ./src/load_data.py --dataset "COCO" --descriptor SuperPoint --num_keypoints 512 --device cuda
+python ./src/load_data.py --dataset COCO --descriptor SIFT --num_keypoints 1024 --device cpu
+python ./src/load_data.py --dataset COCO --descriptor SuperPoint --num_keypoints 512 --device cuda
 ```
 
 ## Running on CSLab Slurm cluster
