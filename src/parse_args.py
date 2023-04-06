@@ -39,4 +39,4 @@ def parse_args():
     elif args.descriptor == 'SuperPoint':
         args.descriptor_dim = 256
 
-    return parser.parse_args()
+    return args
