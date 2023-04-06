@@ -45,45 +45,6 @@ def get_matching_matrix(kpts0, kpts1, mask0, mask1, M):
     return matches
 
 
-def pad_batched_tensors(batch, num_keypoints, ix):
-    """Pad batched result produced by SuperPoint"""
-    assert len(batch['keypoints']) == len(batch['descriptors'])
-    assert len(batch['keypoints']) == len(batch['scores'])
-
-    kpts_list, desc_list, scores_list, mask_list = [], [], [], []
-    for kpts, desc, scores in zip(batch['keypoints'], batch['descriptors'], batch['scores']):
-        kpts, desc, scores, mask = pad_tensors(kpts, desc.T, scores, num_keypoints)
-        kpts_list.append(kpts)
-        desc_list.append(desc)
-        scores_list.append(scores)
-        mask_list.append(mask)
-
-    batch = {
-        f'keypoints{ix}': torch.stack(kpts_list),
-        f'descriptors{ix}': torch.stack(desc_list),
-        f'scores{ix}': torch.stack(scores_list),
-        f'mask{ix}': torch.stack(mask_list)
-    }
-    return batch
-
-
-def pad_tensors(kpts, desc, scores, num_keypoints):
-    """Pad input tensors to the lenght of num_keypoints"""
-    device = kpts.device
-
-    mask = torch.ones(num_keypoints, dtype=torch.bool, device=device)
-    if len(kpts) == num_keypoints:
-        return kpts, desc, scores, mask
-
-    num_pad = num_keypoints - len(kpts)
-    kpts = torch.concat((kpts, torch.zeros(num_pad, 2, device=device)))
-    desc = torch.concat((desc, torch.zeros(num_pad, desc.size(1), device=device)))
-    scores = torch.concat((scores, torch.zeros(num_pad, device=device)))
-    mask[-num_pad:] = 0
-
-    return kpts, desc, scores, mask
-
-
 def batch_to(batch, device):
     """Move device for dict-like batch"""
     for key, val in batch.items():
