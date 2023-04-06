@@ -83,6 +83,13 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
     def get_sift_tensors(self, image):
         """Extract keypoints, descriptors, and confidence scores via SIFT"""
         kpts, desc = self.sift.detectAndCompute(image, None)
+
+        if len(kpts) == 0:
+            kpts = torch.empty(0, 2)
+            desc = torch.empty(0, 128)
+            scores = torch.empty(0)
+            return kpts, desc, scores
+
         num_kpts = min(self.num_keypoints, len(kpts))
         kpts_sift = kpts[:num_kpts]
 
