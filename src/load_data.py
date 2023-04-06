@@ -109,6 +109,7 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
         image = image.to(self.config['device'])
         tensors = self.superpoint({'image': image})
 
+        # Batch size equals one
         kpts = tensors['keypoints'][0].to('cpu')
         desc = tensors['descriptors'][0].T.to('cpu')
         scores = tensors['scores'][0].to('cpu')
@@ -159,6 +160,7 @@ def collate_function(batch, num_keypoints):
 def _pad_truncate_tensors(kpts, desc, scores, num_keypoints):
     """Pad/truncate input tensors to the lenght of num_keypoints"""
     mask = torch.ones(num_keypoints, dtype=torch.bool)
+
     if len(kpts) >= num_keypoints:
         kpts = kpts[:num_keypoints, :]
         desc = desc[:, :num_keypoints]
