@@ -1,8 +1,8 @@
-import argparse
+from argparse import ArgumentParser
 
 
 def parse_args():
-    parser = argparse.ArgumentParser()
+    parser = ArgumentParser()
 
     # HomographyEstimationDataset
     parser.add_argument('--dataset', choices=['Oxford and Paris', 'COCO'], default='Oxford and Paris')
