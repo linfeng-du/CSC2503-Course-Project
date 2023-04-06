@@ -35,7 +35,9 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         image = cv2.imread(self.files[idx], cv2.IMREAD_GRAYSCALE)
-        image, warped, M = self.get_image_pair(image)
+
+        # Make sure that each index corresponds to a determinsitic homography
+        image, warped, M = self.get_image_pair(image, np.random.default_rng(seed=idx))
 
         if self.descriptor != 'SIFT':
             return {
@@ -64,11 +66,11 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
             'mask1': mask1
         }
 
-    def get_image_pair(self, image):
+    def get_image_pair(self, image, rng):
         """Generate image pair via sampled homography"""
         h, w = image.shape
         corners = np.array([(0, 0), (0, h - 1), (w - 1, 0), (w - 1, h - 1)], dtype=np.float32)
-        warp = np.random.randint(-224, 224, size=(4, 2)).astype(np.float32)
+        warp = rng.integers(-224, 225, size=(4, 2)).astype(np.float32)
         M = cv2.getPerspectiveTransform(corners, corners + warp).astype(np.float32)
         warped = cv2.warpPerspective(image, M, (w, h))
 
