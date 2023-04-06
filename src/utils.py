@@ -82,3 +82,11 @@ def pad_tensors(kpts, desc, scores, num_keypoints):
     mask[-num_pad:] = 0
 
     return kpts, desc, scores, mask
+
+
+def batch_to(batch, device):
+    """Move device for dict-like batch"""
+    for key, val in batch.items():
+        batch[key] = val.to(device)
+
+    return batch
