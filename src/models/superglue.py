@@ -265,6 +265,12 @@ class SuperGlue(nn.Module):
             scores, self.bin_score,
             iters=self.config['sinkhorn_iterations'])
 
+        return scores
+
+    def get_matches(self, data, scores):
+        """For inference"""
+        scores = self(data)
+
         # Get the matches with score above "match_threshold".
         max0, max1 = scores[:, :-1, :-1].max(2), scores[:, :-1, :-1].max(1)
         indices0, indices1 = max0.indices, max1.indices
