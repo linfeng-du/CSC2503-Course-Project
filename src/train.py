@@ -10,7 +10,7 @@ from tqdm import tqdm
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 from models.superglue import SuperGlue
 from load_data import HomographyEstimationDataset, collate_function
-from utils import batch_to, pad_batched_tensors, get_matching_matrix
+from utils import batch_to, get_matching_matrix
 
 
 def train(args):
