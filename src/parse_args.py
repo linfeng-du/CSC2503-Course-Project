@@ -10,11 +10,6 @@ def parse_args():
     parser.add_argument('--resize', type=int, nargs='+', default=[640, 480])
     parser.add_argument('--descriptor', choices=['SIFT', 'SuperPoint'], default='SIFT')
 
-    # SuperPoint
-    parser.add_argument('--nms_radius', type=int, default=4)
-    parser.add_argument('--keypoint_threshold', type=float, default=0.005)
-    parser.add_argument('--remove_borders', type=int, default=4)
-
     # SuperGlue
     parser.add_argument('--weights', choices=['none', 'indoor', 'outdoor'], default='none')
     parser.add_argument('--sinkhorn_iterations', type=int, default=100)
@@ -28,7 +23,6 @@ def parse_args():
     parser.add_argument('--gamma', type=float, default=0.999998)
 
     # Reproducibility
-    parser.add_argument('--homo_seed', type=int, default=42)
     parser.add_argument('--data_seed', type=int, default=42)
     parser.add_argument('--model_seed', type=int, default=42)
     parser.add_argument('--training_seed', type=int, default=42)
