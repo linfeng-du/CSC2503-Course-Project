@@ -4,6 +4,7 @@
 - opencv-python==4.7.0.72
 - matplotlib==3.6.2
 
+
 ## Dataset
 ### Oxford and Paris
 Download the first 100K distractor images in [revisitop1m](https://github.com/filipradenovic/revisitop). Unzip and place it to `./dataset/revisitop1m`.
@@ -17,6 +18,7 @@ Download the training set of COCO2014 (82783 images). Unzip and place it to `./d
 wget http://images.cocodataset.org/zips/train2014.zip
 ```
 
+
 ## Extract keypoint features and cache
 Extract keypoint features as a pre-processing step to alleviate the dataloader bottleneck. This step will also randomly generate a warped image for each original image and extract keypoint features for the warped image.
 ```sh
@@ -26,6 +28,20 @@ python ./src/load_data.py --dataset "Oxford and Paris" --descriptor SuperPoint -
 python ./src/load_data.py --dataset COCO --descriptor SIFT --num_keypoints 1024 --device cpu
 python ./src/load_data.py --dataset COCO --descriptor SuperPoint --num_keypoints 512 --device cuda
 ```
+
+## Training
+### Training with SIFT descriptors
+```sh
+python ./src/debug.py --dataset "Oxford and Paris" --descriptor SIFT --num_keypoints 1024
+python ./src/debug.py --dataset COCO --descriptor SIFT --num_keypoints 1024
+```
+
+### Training with SuperPoint descriptors
+```sh
+python ./src/debug.py --dataset "Oxford and Paris" --descriptor SuperPoint --num_keypoints 512
+python ./src/debug.py --dataset COCO --descriptor SuperPoint --num_keypoints 512
+```
+
 
 ## Running on CSLab Slurm cluster
 ```sh
