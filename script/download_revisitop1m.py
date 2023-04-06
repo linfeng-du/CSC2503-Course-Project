@@ -7,6 +7,7 @@ from argparse import ArgumentParser
 
 
 def download_distractors(dataset_root, num_images):
+    """Download distractor images in the Oxford and Paris dataset [Radenovic et al. 2018]"""
     assert num_images <= int(1e6), 'num_images cannot exceed 1M.'
 
     src_dir = 'http://ptak.felk.cvut.cz/revisitop/revisitop1m/jpg'
