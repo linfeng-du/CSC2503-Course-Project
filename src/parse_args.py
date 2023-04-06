@@ -32,4 +32,17 @@ def parse_args():
     parser.add_argument('--data_seed', type=int, default=42)
     parser.add_argument('--model_seed', type=int, default=42)
     parser.add_argument('--training_seed', type=int, default=42)
+
+    args = parser.parse_args()
+
+    if args.dataset == 'Oxford and Paris':
+        args.dataset_dir = './dataset/revisitop1m'
+    elif args.dataset == 'COCO':
+        args.dataset_dir = './dataset/COCO_train2014'
+
+    if args.descriptor == 'SIFT':
+        args.descriptor_dim = 128
+    elif args.descriptor == 'SuperPoint':
+        args.descriptor_dim = 256
+
     return parser.parse_args()
