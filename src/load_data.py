@@ -181,7 +181,7 @@ def collate_fn(batch, num_keypoints):
         )
 
     for key, val in batched.items():
-        if key in ['batch_matches', 'batch_mismatches']:
+        if key in ['matches', 'mismatches', 'batch_matches', 'batch_mismatches']:
             batched[key] = torch.cat(val)
         else:
             batched[key] = torch.stack(val)
