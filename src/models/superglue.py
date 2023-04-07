@@ -84,9 +84,13 @@ class KeypointEncoder(nn.Module):
         return self.encoder(torch.cat(inputs, dim=1))
 
 
-def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
+def attention(query: torch.Tensor,
+              key: torch.Tensor,
+              value: torch.Tensor,
+              mask: torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
     dim = query.shape[1]
     scores = torch.einsum('bdhn,bdhm->bhnm', query, key) / dim**.5
+    scores.masked_fill_(mask == 0, -1e9)
     prob = torch.nn.functional.softmax(scores, dim=-1)
     return torch.einsum('bhnm,bdhm->bdhn', prob, value), prob
 
@@ -101,11 +105,15 @@ class MultiHeadedAttention(nn.Module):
         self.merge = nn.Conv1d(d_model, d_model, kernel_size=1)
         self.proj = nn.ModuleList([deepcopy(self.merge) for _ in range(3)])
 
-    def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
+    def forward(self,
+                query: torch.Tensor,
+                key: torch.Tensor,
+                value: torch.Tensor,
+                mask: torch.Tensor) -> torch.Tensor:
         batch_dim = query.size(0)
         query, key, value = [l(x).view(batch_dim, self.dim, self.num_heads, -1)
                              for l, x in zip(self.proj, (query, key, value))]
-        x, _ = attention(query, key, value)
+        x, _ = attention(query, key, value, mask.unsqueeze(1))
         return self.merge(x.contiguous().view(batch_dim, self.dim*self.num_heads, -1))
 
 
@@ -116,8 +124,11 @@ class AttentionalPropagation(nn.Module):
         self.mlp = MLP([feature_dim*2, feature_dim*2, feature_dim])
         nn.init.constant_(self.mlp[-1].bias, 0.0)
 
-    def forward(self, x: torch.Tensor, source: torch.Tensor) -> torch.Tensor:
-        message = self.attn(x, source, source)
+    def forward(self,
+                x: torch.Tensor,
+                source: torch.Tensor,
+                mask: torch.Tensor) -> torch.Tensor:
+        message = self.attn(x, source, source, mask)
         return self.mlp(torch.cat([x, message], dim=1))
 
 
@@ -129,13 +140,19 @@ class AttentionalGNN(nn.Module):
             for _ in range(len(layer_names))])
         self.names = layer_names
 
-    def forward(self, desc0: torch.Tensor, desc1: torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
+    def forward(self,
+                desc0: torch.Tensor,
+                desc1: torch.Tensor,
+                mask0: torch.Tensor,
+                mask1: torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
         for layer, name in zip(self.layers, self.names):
             if name == 'cross':
                 src0, src1 = desc1, desc0
+                src_mask0, src_mask1 = mask1, mask0
             else:  # if name == 'self':
                 src0, src1 = desc0, desc1
-            delta0, delta1 = layer(desc0, src0), layer(desc1, src1)
+                src_mask0, src_mask1 = mask0, mask1
+            delta0, delta1 = layer(desc0, src0, src_mask0), layer(desc1, src1, src_mask1)
             desc0, desc1 = (desc0 + delta0), (desc1 + delta1)
         return desc0, desc1
 
@@ -233,6 +250,7 @@ class SuperGlue(nn.Module):
         """Run SuperGlue on a pair of keypoints and descriptors"""
         desc0, desc1 = data['descriptors0'].transpose(1, 2), data['descriptors1'].transpose(1, 2)
         kpts0, kpts1 = data['keypoints0'], data['keypoints1']
+        mask0, mask1 = data['mask0'].unsqueeze(1), data['mask1'].unsqueeze(1)
 
         if kpts0.shape[1] == 0 or kpts1.shape[1] == 0:  # no keypoints
             shape0, shape1 = kpts0.shape[:-1], kpts1.shape[:-1]
@@ -252,7 +270,7 @@ class SuperGlue(nn.Module):
         desc1 = desc1 + self.kenc(kpts1, data['scores1'])
 
         # Multi-layer Transformer network.
-        desc0, desc1 = self.gnn(desc0, desc1)
+        desc0, desc1 = self.gnn(desc0, desc1, mask0, mask1)
 
         # Final MLP projection.
         mdesc0, mdesc1 = self.final_proj(desc0), self.final_proj(desc1)
