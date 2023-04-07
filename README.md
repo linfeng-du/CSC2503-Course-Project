@@ -7,7 +7,7 @@
 
 ## Dataset
 ### Oxford and Paris
-Download the first 100K distractor images in [revisitop1m](https://github.com/filipradenovic/revisitop). Unzip and place it to `./dataset/revisitop1m`.
+Download the first 100K distractor images in [revisitop1m](https://github.com/filipradenovic/revisitop).
 ```sh
 python ./script/download_revisitop1m.py --num_images 100000
 ```
