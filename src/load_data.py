@@ -154,64 +154,66 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
         return matches, mismatches
 
 
-def collate_function(batch, num_keypoints):
-    """Pad/truncate and collate batched items"""
-    M_list = []
-    kpts0_list, kpts1_list = [], []
-    desc0_list, desc1_list = [], []
-    scores0_list, scores1_list = [], []
-    mask0_list, mask1_list = [], []
-    for data in batch:
-        kpts0, desc0, scores0, mask0 = _pad_truncate_tensors(data['keypoints0'],
-                                                             data['descriptors0'],
-                                                             data['scores0'],
-                                                             num_keypoints)
-        kpts1, desc1, scores1, mask1 = _pad_truncate_tensors(data['keypoints1'],
-                                                             data['descriptors1'],
-                                                             data['scores1'],
-                                                             num_keypoints)
-
-        M_list.append(data['M'])
-        kpts0_list.append(kpts0)
-        kpts1_list.append(kpts1)
-        desc0_list.append(desc0)
-        desc1_list.append(desc1)
-        scores0_list.append(scores0)
-        scores1_list.append(scores1)
-        mask0_list.append(mask0)
-        mask1_list.append(mask1)
-
-    batch = {
-        'M': torch.stack(M_list),
-        'keypoints0': torch.stack(kpts0_list),
-        'keypoints1': torch.stack(kpts1_list),
-        'descriptors0': torch.stack(desc0_list),
-        'descriptors1': torch.stack(desc1_list),
-        'scores0': torch.stack(scores0_list),
-        'scores1': torch.stack(scores1_list),
-        'mask0': torch.stack(mask0_list),
-        'mask1': torch.stack(mask1_list)
+def collate_fn(batch, num_keypoints):
+    """Pad or truncate tensors and collate them"""
+    batched = {
+        'M': [],
+        'keypoints0':    [], 'keypoints1':       [],
+        'descriptors0':  [], 'descriptors1':     [],
+        'scores0':       [], 'scores1':          [],
+        'mask0':         [], 'mask1':            [],
+        'matches':       [], 'mismatches':       [],
+        'batch_matches': [], 'batch_mismatches': []
     }
-    return batch
+    for batch_ix, data in enumerate(batch):
+        data = _pad_or_truncate_tensors(data, num_keypoints, ix=0)
+        data = _pad_or_truncate_tensors(data, num_keypoints, ix=1)
+
+        for key, val in data.items():
+            batched[key].append(val)
+
+        batched['batch_matches'].append(
+            batch_ix * torch.ones_like(data['matches'][:, 0])
+        )
+        batched['batch_mismatches'].append(
+            batch_ix * torch.ones_like(data['mismatches'][:, 0])
+        )
+
+    for key, val in batched.items():
+        if key in ['batch_matches', 'batch_mismatches']:
+            batched[key] = torch.cat(val)
+        else:
+            batched[key] = torch.stack(val)
+
+    return batched
 
 
-def _pad_truncate_tensors(kpts, desc, scores, num_keypoints):
-    """Pad/truncate input tensors to the lenght of num_keypoints"""
-    mask = torch.ones(num_keypoints, dtype=torch.bool)
+def _pad_or_truncate_tensors(data, num_keypoints, ix):
+    """Pad or truncate tensors to the lenght of num_keypoints"""
+    kpts, desc, scores = \
+        data[f'keypoints{ix}'], data[f'descriptors{ix}'], data[f'scores{ix}']
+
+    data[f'mask{ix}'] = torch.ones(num_keypoints, dtype=torch.bool)
 
     if len(kpts) >= num_keypoints:
-        kpts = kpts[:num_keypoints, :]
-        desc = desc[:, :num_keypoints]
-        scores = scores[:num_keypoints]
-        return kpts, desc, scores, mask
+        data[f'keypoints{ix}'] = kpts[:num_keypoints, :]
+        data[f'descriptors{ix}'] = desc[:num_keypoints, :]
+        data[f'scores{ix}'] = scores[:num_keypoints]
+        data['matches'] = _filter_matches(data['matches'], num_keypoints, ix)
+        data['mismatches'] = _filter_matches(data['mismatches'], num_keypoints, ix)
+        return data
 
     num_pad = num_keypoints - len(kpts)
-    kpts = torch.concat((kpts, torch.zeros(num_pad, 2)))
-    desc = torch.concat((desc, torch.zeros(num_pad, desc.size(1))))
-    scores = torch.concat((scores, torch.zeros(num_pad)))
-    mask[-num_pad:] = 0
+    data[f'keypoints{ix}'] = torch.concat((kpts, torch.zeros(num_pad, 2)))
+    data[f'descriptors{ix}'] = torch.concat((desc, torch.zeros(num_pad, desc.size(1))))
+    data[f'scores{ix}'] = torch.concat((scores, torch.zeros(num_pad)))
+    data[f'mask{ix}'][-num_pad:] = 0
+    return data
 
-    return kpts, desc, scores, mask
+
+def _filter_matches(matches, num_keypoints, ix):
+    """Remove matches with truncated keypoints at index `ix`"""
+    return matches[matches[:, ix] < num_keypoints, :]
 
 
 if __name__ == '__main__':
