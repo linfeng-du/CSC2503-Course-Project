@@ -92,9 +92,9 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
         kpts_sift, desc = self.sift.detectAndCompute(image, None)
 
         if len(kpts_sift) == 0:
-            kpts = np.empty(0, 2, dtype=np.float32)
-            desc = np.empty(0, 128, dtype=np.float32)
-            scores = np.empty(0, dtype=np.float32)
+            kpts = np.empty((0, 2), dtype=np.float32)
+            desc = np.empty((0, 128), dtype=np.float32)
+            scores = np.empty((0,), dtype=np.float32)
             return kpts, desc, scores
 
         kpts_sift = kpts_sift[:self.config['num_keypoints']]
