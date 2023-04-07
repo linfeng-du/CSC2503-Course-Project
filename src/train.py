@@ -9,8 +9,8 @@ from tqdm import tqdm
 
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 from models.superglue import SuperGlue
-from load_data import HomographyEstimationDataset, collate_function
-from utils import batch_to, get_matching_matrix
+from load_data import HomographyEstimationDataset
+from utils import collate_fn, batch_to
 
 
 def train(args):
@@ -19,38 +19,49 @@ def train(args):
     generator = torch.Generator().manual_seed(args.data_seed)
     train, val, test = random_split(dataset, [len(dataset) - 2048, 1024, 1024], generator)
 
-    collate_fn = partial(collate_function, num_keypoints=args.num_keypoints)
-    train_loader = DataLoader(train, batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn)
-    val_loader = DataLoader(val, batch_size=args.batch_size, collate_fn=collate_fn)
-    test_loader = DataLoader(test, batch_size=args.batch_size, collate_fn=collate_fn)
+    collater = partial(collate_fn, num_keypoints=args.num_keypoints)
+    train_loader = DataLoader(train, batch_size=args.batch_size, shuffle=True, collate_fn=collater)
+    val_loader = DataLoader(val, batch_size=args.batch_size, collate_fn=collater)
+    test_loader = DataLoader(test, batch_size=args.batch_size, collate_fn=collater)
 
     # Build model, optimizer, and scheduler
     superglue = SuperGlue(vars(args))
     optimizer = optim.Adam(superglue.parameters(), lr=args.lr)
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=args.gamma)
 
+    train_loss = []
     for epoch in range(args.num_epochs):
-        train_epoch(superglue, train_loader, optimizer, scheduler, args.device)
+        train_loss += train_epoch(superglue, train_loader, optimizer, scheduler, epoch, args.device)
 
 
-def train_epoch(superglue, train_loader, optimizer, scheduler, device):
+def train_epoch(superglue, train_loader, optimizer, scheduler, epoch, device):
     superglue.to(device)
-
     superglue.train()
-    for data in tqdm(train_loader):
-        data = batch_to(data, device)
 
-        matches = get_matching_matrix(data['keypoints0'],
-                                      data['keypoints1'],
-                                      data['mask0'],
-                                      data['mask1'],
-                                      data['M'])
+    loss_list = []
+
+    pbar = tqdm(train_loader)
+    for data in pbar:
+        data = batch_to(data, device)
         pred_matches = superglue(data)
 
-        loss = -(pred_matches * matches).sum()
+        loss_matches = -pred_matches[data['batch_matches'],
+                                     data['matches'][:, 0],
+                                     data['matches'][:, 1]].sum()
+        loss_mismatches = -pred_matches[data['batch_mismatches'],
+                                        data['mismatches'][:, 0],
+                                        data['mismatches'][:, 1]].sum()
+        loss = loss_matches + loss_mismatches
+        loss_list.append(loss.item())
+
+        pbar.set_description(f'Epoch {epoch} | Loss {loss_list[-1]}')
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        print(matches.size(), pred_matches.size())
+        if epoch > 1:
+            # Exponential decay of 0.999998 until iteration 900K [Sarlin et al. 2020]
+            scheduler.step()
+
+    return loss_list
