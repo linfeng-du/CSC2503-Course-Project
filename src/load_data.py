@@ -89,20 +89,20 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
 
     def get_sift_features(self, image):
         """Extract keypoints, descriptors, and confidence scores via SIFT"""
-        kpts, desc = self.sift.detectAndCompute(image, None)
+        kpts_sift, desc = self.sift.detectAndCompute(image, None)
 
-        if len(kpts) == 0:
+        if len(kpts_sift) == 0:
             kpts = np.empty(0, 2, dtype=np.float32)
             desc = np.empty(0, 128, dtype=np.float32)
             scores = np.empty(0, dtype=np.float32)
             return kpts, desc, scores
 
-        num_kpts = min(self.config['num_keypoints'], len(kpts))
-        kpts_sift = kpts[:num_kpts]
+        kpts_sift = kpts_sift[:self.config['num_keypoints']]
+        desc = desc[:self.config['num_keypoints'], :] / 256.
 
         kpts = np.array([kpt.pt for kpt in kpts_sift], dtype=np.float32)
-        desc = desc[:num_kpts, :] / 256.
         scores = np.array([kpt.response for kpt in kpts_sift], dtype=np.float32)
+
         return kpts, desc, scores
 
     def get_superpoint_features(self, image):
@@ -114,20 +114,20 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
             tensors = self.superpoint({'image': image})
 
         # Batch size equals one
-        kpts = tensors['keypoints'][0].to('cpu').numpy()
-        desc = tensors['descriptors'][0].T.to('cpu').numpy()
-        scores = tensors['scores'][0].to('cpu').numpy()
+        kpts = tensors['keypoints'][0].cpu().numpy()
+        desc = tensors['descriptors'][0].T.cpu().numpy()
+        scores = tensors['scores'][0].cpu().numpy()
         return kpts, desc, scores
 
     def get_matches_and_mismatches(self, kpts0, kpts1, M):
-        """Generate ground truth matches"""
+        """Generate ground truth matches and mismatches"""
         if len(kpts0) == 0 or len(kpts1) == 0:
             matches = np.empty((0, 2), dtype=np.int64)
             mismatches = np.empty((0, 2), dtype=np.int64)
             return matches, mismatches
 
         # Warp kpts0 via homography
-        kpts0 = cv2.perspectiveTransform(kpts0.reshape((1, -1, 2)), M).squeeze(0)
+        kpts0 = cv2.perspectiveTransform(kpts0.reshape((1, -1, 2)), M).reshape((-1, 2))
 
         # Calculate pairwise distances
         dists = distance.cdist(kpts0, kpts1)
@@ -135,7 +135,7 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
         min10 = np.argmin(dists, axis=0)
         min10_val = np.min(dists, axis=0)
 
-        # Apply constraints to get ground truth matches
+        # Apply constraints to get ground truth matches and mismatches
         #   1. reprojection error is less than 3
         #   2. being the argmin of row (kpts0 -> kpts1) and column (kpts1 -> kpts0) at the same time
         match0_flt1 = min10[min10_val < 3]
