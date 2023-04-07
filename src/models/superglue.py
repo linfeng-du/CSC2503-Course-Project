@@ -286,7 +286,7 @@ class SuperGlue(nn.Module):
 
         return scores
 
-    def get_matches(self, data, scores):
+    def predict(self, data):
         """For inference"""
         scores = self(data)
 
