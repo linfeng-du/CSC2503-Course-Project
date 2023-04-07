@@ -33,7 +33,8 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
             self.superpoint = SuperPoint({'max_keypoints': self.config['num_keypoints']})
             self.superpoint.to(self.config['device'])
 
-        self.cache_dir = os.path.join(self.config['dataset_dir'] + '_cache', self.config['descriptor'])
+        cache_root = self.config['dataset_dir'] + '_cache'
+        self.cache_dir = os.path.join(cache_root, self.config['descriptor'])
         if not os.path.exists(self.cache_dir):
             os.makedirs(self.cache_dir)
 
