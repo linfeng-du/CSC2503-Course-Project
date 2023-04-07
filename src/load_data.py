@@ -205,7 +205,7 @@ def _pad_or_truncate_tensors(data, num_keypoints, ix):
         return data
 
     num_pad = num_keypoints - len(kpts)
-    data[f'keypoints{ix}'] = torch.concat((kpts, torch.zeros(num_pad, 2)))
+    data[f'keypoints{ix}'] = torch.concat((kpts, torch.zeros(num_pad, kpts.size(1))))
     data[f'descriptors{ix}'] = torch.concat((desc, torch.zeros(num_pad, desc.size(1))))
     data[f'scores{ix}'] = torch.concat((scores, torch.zeros(num_pad)))
     data[f'mask{ix}'][-num_pad:] = 0
