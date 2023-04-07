@@ -1,48 +1,66 @@
 import torch
 
 
-def get_matching_matrix(kpts0, kpts1, mask0, mask1, M):
-    """Generate ground truth matching matrix for batched keypoints"""
-    device = kpts0.device
-    b, n, _ = kpts0.size()
+def collate_fn(batch, num_keypoints):
+    """Pad or truncate tensors and collate them"""
+    batched = {
+        'M': [],
+        'keypoints0':    [], 'keypoints1':       [],
+        'descriptors0':  [], 'descriptors1':     [],
+        'scores0':       [], 'scores1':          [],
+        'mask0':         [], 'mask1':            [],
+        'matches':       [], 'mismatches':       [],
+        'batch_matches': [], 'batch_mismatches': []
+    }
+    for batch_ix, data in enumerate(batch):
+        data = _pad_or_truncate_tensors(data, num_keypoints, ix=0)
+        data = _pad_or_truncate_tensors(data, num_keypoints, ix=1)
 
-    # Warp from kpts0 to kpts1 with homography using homogeneous coordiantes
-    kpts0_src = torch.cat((kpts0, torch.ones(b, n, 1, device=device)), dim=-1)
-    kpts0_dst = torch.bmm(M, kpts0_src.transpose(-2, -1)).transpose(-2, -1)
-    kpts0_dst /= kpts0_dst[:, :, 2:3]
-    kpts0 = kpts0_dst[:, :, :2]
+        for key, val in data.items():
+            batched[key].append(val)
 
-    # Calculate pairwise distances, fill masked positions with inf
-    dists = torch.cdist(kpts0, kpts1)
-    dists.masked_fill_(mask0.unsqueeze(2) == 0, torch.inf)
-    dists.masked_fill_(mask1.unsqueeze(1) == 0, torch.inf)
+        batched['batch_matches'].append(
+            batch_ix * torch.ones_like(data['matches'][:, 0])
+        )
+        batched['batch_mismatches'].append(
+            batch_ix * torch.ones_like(data['mismatches'][:, 0])
+        )
 
-    # Apply constraints to get true matches
-    #   1. reprojection error is less than 3
-    #   2. being the argmin of row (kpts0 -> kpts1) and column (kpts1 -> kpts0) at the same time
-    #   3. not being at masked positions (in case no keypoints are being detected)
-    con_rep = dists < 3
+    for key, val in batched.items():
+        if key in ['matches', 'mismatches', 'batch_matches', 'batch_mismatches']:
+            batched[key] = torch.cat(val)
+        else:
+            batched[key] = torch.stack(val)
 
-    con_row = torch.zeros(b, n, n, dtype=torch.bool, device=device)
-    con_row.scatter_(2, dists.argmin(dim=2).unsqueeze(2), 1)
+    return batched
 
-    con_col = torch.zeros(b, n, n, dtype=torch.bool, device=device)
-    con_col.scatter_(1, dists.argmin(dim=1).unsqueeze(1), 1)
 
-    # baddbmm_cuda only supports float type
-    con_mask = torch.bmm(mask0.unsqueeze(2).float(), mask1.unsqueeze(1).float()).bool()
+def _pad_or_truncate_tensors(data, num_keypoints, ix):
+    """Pad or truncate tensors to the lenght of num_keypoints"""
+    kpts, desc, scores = \
+        data[f'keypoints{ix}'], data[f'descriptors{ix}'], data[f'scores{ix}']
 
-    matches = con_rep & con_row & con_col & con_mask
+    data[f'mask{ix}'] = torch.ones(num_keypoints, dtype=torch.bool)
 
-    # Unmatched keypoints are matched to dustbins (set dustbin -> dustbin to 0)
-    dustbin_row = ~matches.sum(dim=2).bool()
-    matches = torch.cat((matches, dustbin_row.unsqueeze(2)), dim=2)
+    if len(kpts) >= num_keypoints:
+        data[f'keypoints{ix}'] = kpts[:num_keypoints, :]
+        data[f'descriptors{ix}'] = desc[:num_keypoints, :]
+        data[f'scores{ix}'] = scores[:num_keypoints]
+        data['matches'] = _filter_matches(data['matches'], num_keypoints, ix)
+        data['mismatches'] = _filter_matches(data['mismatches'], num_keypoints, ix)
+        return data
 
-    dustbin_col = ~matches.sum(dim=1).bool()
-    matches = torch.cat((matches, dustbin_col.unsqueeze(1)), dim=1)
+    num_pad = num_keypoints - len(kpts)
+    data[f'keypoints{ix}'] = torch.concat((kpts, torch.zeros(num_pad, kpts.size(1))))
+    data[f'descriptors{ix}'] = torch.concat((desc, torch.zeros(num_pad, desc.size(1))))
+    data[f'scores{ix}'] = torch.concat((scores, torch.zeros(num_pad)))
+    data[f'mask{ix}'][-num_pad:] = 0
+    return data
 
-    matches[:, -1, -1] = 0
-    return matches
+
+def _filter_matches(matches, num_keypoints, ix):
+    """Remove matches with truncated keypoints at index `ix`"""
+    return matches[matches[:, ix] < num_keypoints, :]
 
 
 def batch_to(batch, device):
