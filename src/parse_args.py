@@ -17,7 +17,7 @@ def parse_args():
 
     # Training
     parser.add_argument('--device', type=str, default='cuda')
-    parser.add_argument('--num_epochs', type=int, default=20)
+    parser.add_argument('--num_epochs', type=int, default=9)
     parser.add_argument('--batch_size', type=int, default=24)
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--gamma', type=float, default=0.999998)
