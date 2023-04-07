@@ -46,5 +46,5 @@ python ./script/train.py --dataset COCO --descriptor SuperPoint --num_keypoints 
 ## Running on CSLab Slurm cluster
 ```sh
 sinfo   # Check gpunode availability and partition info
-srun --partition ${partition} --nodelist ${gpunode} --cpus-per-task 4 --gres=gpu:1 --mem=8G --pty bash
+srun --partition ${partition} --nodelist ${gpunode} --gres gpu:1 --cpus-per-task 4 --mem 8G --pty bash
 ```
