@@ -138,7 +138,7 @@ class HomographyEstimationDataset(torch.utils.data.Dataset):
 
         # Apply constraints to get ground truth matches and mismatches
         #   1. reprojection error is less than 3
-        #   2. being the argmin of row (kpts0 -> kpts1) and column (kpts1 -> kpts0) at the same time
+        #   2. being the argmin of row (kpts0 -> kpts1) and column (kpts1 -> kpts0)
         match0_flt1 = min10[min10_val < 3]
         match0_flt2 = np.where(min10[min01] == np.arange(min01.shape[0]))[0]
 
