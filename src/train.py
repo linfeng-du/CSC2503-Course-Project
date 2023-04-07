@@ -32,6 +32,7 @@ def train(args):
     train_loss = []
     for epoch in range(args.num_epochs):
         train_loss += train_epoch(superglue, train_loader, optimizer, scheduler, epoch, args.device)
+        evaluate(superglue, val_loader, args.device)
 
 
 def train_epoch(superglue, train_loader, optimizer, scheduler, epoch, device):
@@ -39,29 +40,38 @@ def train_epoch(superglue, train_loader, optimizer, scheduler, epoch, device):
     superglue.train()
 
     loss_list = []
+    with tqdm(train_loader) as pbar:
+        for data in pbar:
+            data = batch_to(data, device)
+            pred_matches = superglue(data)
 
-    pbar = tqdm(train_loader)
-    for data in pbar:
-        data = batch_to(data, device)
-        pred_matches = superglue(data)
+            loss_matches = -pred_matches[data['batch_matches'],
+                                        data['matches'][:, 0],
+                                        data['matches'][:, 1]].sum()
+            loss_mismatches = -pred_matches[data['batch_mismatches'],
+                                            data['mismatches'][:, 0],
+                                            data['mismatches'][:, 1]].sum()
+            loss = loss_matches + loss_mismatches
+            loss_list.append(loss.item())
 
-        loss_matches = -pred_matches[data['batch_matches'],
-                                     data['matches'][:, 0],
-                                     data['matches'][:, 1]].sum()
-        loss_mismatches = -pred_matches[data['batch_mismatches'],
-                                        data['mismatches'][:, 0],
-                                        data['mismatches'][:, 1]].sum()
-        loss = loss_matches + loss_mismatches
-        loss_list.append(loss.item())
+            pbar.set_description(f'Epoch {epoch} | Loss {loss_list[-1]}')
 
-        pbar.set_description(f'Epoch {epoch} | Loss {loss_list[-1]}')
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        if epoch > 1:
-            # Exponential decay of 0.999998 until iteration 900K [Sarlin et al. 2020]
-            scheduler.step()
+            if epoch > 1:
+                # Exponential decay until iteration 900K [Sarlin et al. 2020]
+                scheduler.step()
 
     return loss_list
+
+
+def evaluate(superglue, eval_loader, device):
+    superglue.to(device)
+    superglue.eval()
+
+    for data in tqdm(eval_loader):
+        data = batch_to(data, device)
+        pred = superglue.predict(data)
+        print(pred)
