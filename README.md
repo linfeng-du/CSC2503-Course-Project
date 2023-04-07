@@ -1,7 +1,8 @@
 ## Requirements
 - torch==1.13.0
-- numpy==1.23.5
+- torch-scatter==2.1.1+pt113cu117
 - opencv-python==4.7.0.72
+- numpy==1.23.5
 - matplotlib==3.6.2
 
 
