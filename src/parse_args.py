@@ -1,3 +1,4 @@
+import os
 from argparse import ArgumentParser
 
 
@@ -18,7 +19,7 @@ def parse_args():
     # Training
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--num_epochs', type=int, default=9)
-    parser.add_argument('--batch_size', type=int, default=24)
+    parser.add_argument('--batch_size', type=int, default=4)
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--gamma', type=float, default=0.999998)
 
@@ -27,7 +28,13 @@ def parse_args():
     parser.add_argument('--model_seed', type=int, default=42)
     parser.add_argument('--training_seed', type=int, default=42)
 
+    # Logging
+    parser.add_argument('--version', type=str, default='default')
     args = parser.parse_args()
+
+    args.logdir = f'./runs/{args.dataset}/{args.descriptor}/{args.version}'
+    # assert not os.path.exists(args.logdir), f'Logdir already exists "{args.logdir}"'
+    os.makedirs(args.logdir, exist_ok=True)
 
     if args.dataset == 'Oxford and Paris':
         args.dataset_dir = './dataset/revisitop1m'
