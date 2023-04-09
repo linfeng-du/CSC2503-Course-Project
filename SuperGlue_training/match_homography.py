@@ -141,8 +141,6 @@ if __name__ == '__main__':
 
     with open(opt.config_path, 'r') as file:
         train_config = yaml.full_load(file)
-        if 'dist_enhance' not in train_config['superglue_params']:
-            train_config['superglue_params']['dist_enhance'] = False
         train_config['superglue_params']['weights_path'] = curr_weights_path
         train_config['superglue_params']['GNN_layers'] = ['self', 'cross'] * train_config['superglue_params']['num_layers']
 

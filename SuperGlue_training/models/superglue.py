@@ -275,9 +275,10 @@ class SuperGlue(nn.Module):
         kpts0 = normalize_keypoints(kpts0, data['image0'].shape)
         kpts1 = normalize_keypoints(kpts1, data['image1'].shape)
 
-        # Keypoint MLP encoder.
-        desc0 = desc0 + self.kenc(kpts0, data['scores0'])
-        desc1 = desc1 + self.kenc(kpts1, data['scores1'])
+        if not self.config['no_pos']:
+            # Keypoint MLP encoder.
+            desc0 = desc0 + self.kenc(kpts0, data['scores0'])
+            desc1 = desc1 + self.kenc(kpts1, data['scores1'])
 
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1, kpts0, kpts1)
@@ -321,9 +322,10 @@ class SuperGlue(nn.Module):
         kpts0 = normalize_keypoints(kpts0, data['image0'].shape)
         kpts1 = normalize_keypoints(kpts1, data['image1'].shape)
 
-        # Keypoint MLP encoder.
-        desc0 = desc0 + self.kenc(kpts0, data['scores0'])
-        desc1 = desc1 + self.kenc(kpts1, data['scores1'])
+        if not self.config['no_pos']:
+            # Keypoint MLP encoder.
+            desc0 = desc0 + self.kenc(kpts0, data['scores0'])
+            desc1 = desc1 + self.kenc(kpts1, data['scores1'])
 
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1, kpts0, kpts1)

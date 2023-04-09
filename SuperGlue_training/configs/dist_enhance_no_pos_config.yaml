@@ -1,7 +1,7 @@
 train_params:
   output_dir: output/train
-  experiment_name: default
-  experiment_tag: default #name for experiment in wandb logging
+  experiment_name: dist_enhance_no_pos
+  experiment_tag: dist_enhance_no_pos #name for experiment in wandb logging
   start_epoch: 0 #use -1 to resume the epoch number from restore_path ckpt given
   batch_size: 8
   num_epochs: 5
@@ -18,8 +18,8 @@ train_params:
   init_seed: 10
 
 superglue_params:
-  no_pos: false
-  dist_enhance: false
+  no_pos: true
+  dist_enhance: true
   sinkhorn_iterations: 100
   match_threshold: 0.2
   num_layers: 3

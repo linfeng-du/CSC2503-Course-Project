@@ -256,8 +256,6 @@ if __name__ == "__main__":
         if "cpu" not in device: torch.cuda.set_device(device)
     with open(opt.config_path, 'r') as file:
         config = yaml.full_load(file)
-        if 'dist_enhance' not in config['superglue_params']:
-            config['superglue_params']['dist_enhance'] = False
     config["train_params"]['save_dir'] = increment_path(Path(config['train_params']['output_dir']) / config['train_params']['experiment_name'])
     if opt.local_rank in [0, -1]:
         for i,k in config.items():

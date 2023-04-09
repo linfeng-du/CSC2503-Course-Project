@@ -18,7 +18,8 @@ train_params:
   init_seed: 10
 
 superglue_params:
-  dist_enhance: True
+  no_pos: false
+  dist_enhance: true
   sinkhorn_iterations: 100
   match_threshold: 0.2
   num_layers: 3
