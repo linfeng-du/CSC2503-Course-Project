@@ -3,7 +3,7 @@ train_params:
   experiment_name: default
   experiment_tag: default #name for experiment in wandb logging
   start_epoch: 0 #use -1 to resume the epoch number from restore_path ckpt given
-  batch_size: 8
+  batch_size: 16
   num_epochs: 90
   sync_bn: false #whether to sync batch norm layer in distributed training setting
   restore_opt: true #whether to restore the optimizer states while resuming the training from given ckpt
