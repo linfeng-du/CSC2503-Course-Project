@@ -1,3 +1,4 @@
+import yaml
 from pathlib import Path
 import argparse
 import random
@@ -95,6 +96,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--force_cpu', action='store_true',
         help='Force pytorch to run in CPU mode.')
+    parser.add_argument('--config_path', type=str, default="configs/coco_config.yaml", help="Path to the config file")
 
     opt = parser.parse_args()
     print(opt)
@@ -136,18 +138,19 @@ if __name__ == '__main__':
             curr_weights_path = str(opt.superglue)
         else:
             raise ValueError("Given --superglue path doesn't exist or invalid")
+
+    with open(opt.config_path, 'r') as file:
+        train_config = yaml.full_load(file)
+        if 'dist_enhance' not in train_config['superglue_params']:
+            train_config['superglue_params']['dist_enhance'] = False
+        train_config['superglue_params']['weights_path'] = curr_weights_path
+        train_config['superglue_params']['GNN_layers'] = ['self', 'cross'] * train_config['superglue_params']['num_layers']
+
     config = {
-        'superpoint': {
-            'nms_radius': opt.nms_radius,
-            'keypoint_threshold': opt.keypoint_threshold,
-            'max_keypoints': opt.max_keypoints
-        },
-        'superglue': {
-            'weights_path': curr_weights_path,
-            'sinkhorn_iterations': opt.sinkhorn_iterations,
-            'match_threshold': opt.match_threshold,
-        }
+        'superpoint': train_config['superpoint_params'],
+        'superglue': train_config['superglue_params']
     }
+    print(train_config['superglue_params']['GNN_layers'])
     matching = Matching(config).eval().to(device)
     input_dir = Path(opt.input_dir)
     print('Looking for data in directory \"{}\"'.format(input_dir))

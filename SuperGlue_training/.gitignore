@@ -4,6 +4,7 @@
 
 output/
 .vscode/
+__pycache__/
 images/
 debug/
 wandb/

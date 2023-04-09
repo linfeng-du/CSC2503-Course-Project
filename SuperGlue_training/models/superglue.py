@@ -98,58 +98,68 @@ class KeypointEncoder(nn.Module):
         return self.encoder(torch.cat(inputs, dim=1))
 
 
-def attention(query, key, value):
+def attention(query, key, value, dists=None):
     dim = query.shape[1]
-    scores = torch.einsum('bdhn,bdhm->bhnm', query, key) / dim**.5
+    if dists is not None:
+        scores = torch.einsum('bdhn,bdhm->bhnm', query, key) * dists.unsqueeze(1) / dim**.5
+    else:
+        scores = torch.einsum('bdhn,bdhm->bhnm', query, key) / dim**.5
     prob = torch.nn.functional.softmax(scores, dim=-1)
     return torch.einsum('bhnm,bdhm->bdhn', prob, value), prob
 
 
 class MultiHeadedAttention(nn.Module):
     """ Multi-head attention to increase model expressivitiy """
-    def __init__(self, num_heads: int, d_model: int):
+    def __init__(self, num_heads: int, d_model: int, dist_enhance: bool):
         super().__init__()
         assert d_model % num_heads == 0
         self.dim = d_model // num_heads
         self.num_heads = num_heads
         self.merge = nn.Conv1d(d_model, d_model, kernel_size=1)
         self.proj = nn.ModuleList([deepcopy(self.merge) for _ in range(3)])
+        if dist_enhance:
+            self.proj_dist = nn.Parameter(torch.ones(512, 512))
 
-    def forward(self, query, key, value):
+    def forward(self, query, key, value, kpts_src, kpts_dst):
         batch_dim = query.size(0)
         query, key, value = [l(x).view(batch_dim, self.dim, self.num_heads, -1)
                              for l, x in zip(self.proj, (query, key, value))]
-        x, _ = attention(query, key, value)
+        if hasattr(self, 'proj_dist'):
+            dists = self.proj_dist * torch.cdist(kpts_src, kpts_dst)
+        else:
+            dists = None
+        x, _ = attention(query, key, value, dists)
         return self.merge(x.contiguous().view(batch_dim, self.dim*self.num_heads, -1))
 
 
 class AttentionalPropagation(nn.Module):
-    def __init__(self, feature_dim: int, num_heads: int, use_layernorm=False):
+    def __init__(self, feature_dim: int, num_heads: int, dist_enhance: bool, use_layernorm=False):
         super().__init__()
-        self.attn = MultiHeadedAttention(num_heads, feature_dim)
+        self.attn = MultiHeadedAttention(num_heads, feature_dim, dist_enhance)
         self.mlp = MLP([feature_dim*2, feature_dim*2, feature_dim], use_layernorm=use_layernorm)
         nn.init.constant_(self.mlp[-1].bias, 0.0)
 
-    def forward(self, x, source):
-        message = self.attn(x, source, source)
+    def forward(self, x, source, kpts, kpts_source):
+        message = self.attn(x, source, source, kpts, kpts_source)
         return self.mlp(torch.cat([x, message], dim=1))
 
 
 class AttentionalGNN(nn.Module):
-    def __init__(self, feature_dim: int, layer_names: list, use_layernorm=False):
+    def __init__(self, feature_dim: int, layer_names: list, dist_enhance: int, use_layernorm=False):
         super().__init__()
         self.layers = nn.ModuleList([
-            AttentionalPropagation(feature_dim, 4, use_layernorm=use_layernorm)
+            AttentionalPropagation(feature_dim, 4, dist_enhance, use_layernorm=use_layernorm)
             for _ in range(len(layer_names))])
         self.names = layer_names
 
-    def forward(self, desc0, desc1):
+    def forward(self, desc0, desc1, kpts0, kpts1):
         for layer, name in zip(self.layers, self.names):
             if name == 'cross':
                 src0, src1 = desc1, desc0
+                delta0, delta1 = layer(desc0, src0, kpts0, kpts1), layer(desc1, src1, kpts1, kpts0)
             else:  # if name == 'self':
                 src0, src1 = desc0, desc1
-            delta0, delta1 = layer(desc0, src0), layer(desc1, src1)
+                delta0, delta1 = layer(desc0, src0, kpts0, kpts0), layer(desc1, src1, kpts1, kpts1)
             desc0, desc1 = (desc0 + delta0), (desc1 + delta1)
         return desc0, desc1
 
@@ -226,7 +236,7 @@ class SuperGlue(nn.Module):
             self.config['descriptor_dim'], self.config['keypoint_encoder'], use_layernorm=self.config['use_layernorm'])
 
         self.gnn = AttentionalGNN(
-            self.config['descriptor_dim'], self.config['GNN_layers'], use_layernorm=self.config['use_layernorm'])
+            self.config['descriptor_dim'], self.config['GNN_layers'], self.config['dist_enhance'], use_layernorm=self.config['use_layernorm'])
 
         self.final_proj = nn.Conv1d(
             self.config['descriptor_dim'], self.config['descriptor_dim'],
@@ -270,7 +280,7 @@ class SuperGlue(nn.Module):
         desc1 = desc1 + self.kenc(kpts1, data['scores1'])
 
         # Multi-layer Transformer network.
-        desc0, desc1 = self.gnn(desc0, desc1)
+        desc0, desc1 = self.gnn(desc0, desc1, kpts0, kpts1)
 
         # Final MLP projection.
         mdesc0, mdesc1 = self.final_proj(desc0), self.final_proj(desc1)
@@ -316,7 +326,7 @@ class SuperGlue(nn.Module):
         desc1 = desc1 + self.kenc(kpts1, data['scores1'])
 
         # Multi-layer Transformer network.
-        desc0, desc1 = self.gnn(desc0, desc1)
+        desc0, desc1 = self.gnn(desc0, desc1, kpts0, kpts1)
 
         # Final MLP projection.
         mdesc0, mdesc1 = self.final_proj(desc0), self.final_proj(desc1)

@@ -731,10 +731,10 @@ def weighted_score(results):
 def find_pred(inp, superpoint_model, superglue_model):
     pred = {}
     if 'keypoints0' not in inp:
-        pred0 = superpoint_model({'image': inp['image0']}, curr_max_kp=-1, curr_key_thresh=0.005)
+        pred0 = superpoint_model({'image': inp['image0']})
         pred = {**pred, **{k+'0': v for k, v in pred0.items()}}
     if 'keypoints1' not in inp:
-        pred1 = superpoint_model({'image': inp['image1']}, curr_max_kp=-1, curr_key_thresh=0.005)
+        pred1 = superpoint_model({'image': inp['image1']})
         pred = {**pred, **{k+'1': v for k, v in pred1.items()}}
 
     data = {**inp, **pred}

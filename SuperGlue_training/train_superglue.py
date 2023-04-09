@@ -111,6 +111,10 @@ def train(config, rank):
     print("Number of batches: {}".format(num_batches))
     warmup_iters = config['optimizer_params']['warmup_epochs'] * num_batches
     change_lr(start_epoch, config, optimizer)
+
+    n_iter = 0
+    writer = SummaryWriter(log_dir=save_dir / 'tensorboard')
+
     for epoch in range(start_epoch, num_epochs):
         print("Started epoch: {} in rank {}".format(epoch + 1, rank))
         superglue_model.train()
@@ -163,10 +167,20 @@ def train(config, rank):
                 'gt_vec': gt_vector
             }
             total_loss, pos_loss, neg_loss = superglue_model(superglue_input, **{'mode': 'train'})
+
+            writer.add_scalars('Training', {
+                'total': total_loss,
+                'matches': pos_loss,
+                'mismatches': neg_loss
+                }, n_iter)
+
             total_loss.backward()
             optimizer.step()
             optimizer.zero_grad()
             t4 = time_synchronized()
+
+            n_iter += 1
+
             if ema:
                 ema.update(superglue_model)
             data_time, preprocess_time, model_time = torch.tensor(t1 - t5, device=device), torch.tensor(t3-t2, device=device), torch.tensor(t4-t3, device=device)
@@ -199,6 +213,11 @@ def train(config, rank):
                 else:
                     eval_superglue = superglue_model.module if is_distributed else superglue_model
                 results = test_model(val_dataloader, superpoint_model, eval_superglue, config['train_params']['val_images_count'], device)
+
+                writer.add_scalars('Training', {
+                'validation': results['weight_score'],
+                }, n_iter)
+
             ckpt = {'epoch': epoch,
                     'iter': -1,
                     'ema': ema.ema.state_dict() if ema else None,
@@ -237,6 +256,8 @@ if __name__ == "__main__":
         if "cpu" not in device: torch.cuda.set_device(device)
     with open(opt.config_path, 'r') as file:
         config = yaml.full_load(file)
+        if 'dist_enhance' not in config['superglue_params']:
+            config['superglue_params']['dist_enhance'] = False
     config["train_params"]['save_dir'] = increment_path(Path(config['train_params']['output_dir']) / config['train_params']['experiment_name'])
     if opt.local_rank in [0, -1]:
         for i,k in config.items():
