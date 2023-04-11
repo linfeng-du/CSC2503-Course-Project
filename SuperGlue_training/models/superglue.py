@@ -125,9 +125,16 @@ class MultiHeadedAttention(nn.Module):
         query, key, value = [l(x).view(batch_dim, self.dim, self.num_heads, -1)
                              for l, x in zip(self.proj, (query, key, value))]
         if hasattr(self, 'proj_dist'):
-            dists = self.proj_dist * torch.cdist(kpts_src, kpts_dst)
+            dists = torch.cdist(kpts_src, kpts_dst)
+            dists_ix = dists.argsort(dim=-1)
+            dists_params = self.proj_dist.unsqueeze(0)[torch.zeros(dists.size(0), dtype=torch.long), :, :]
+            dists_params = torch.zeros_like(dists).scatter_(-1, dists_ix, dists_params)
+            dists = dists_params * dists
+            # dists = torch.cdist(kpts_src, kpts_dst)
+            # dists = self.proj_dist * dists
         else:
             dists = None
+        # print(self.proj_dist)
         x, _ = attention(query, key, value, dists)
         return self.merge(x.contiguous().view(batch_dim, self.dim*self.num_heads, -1))
 

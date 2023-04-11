@@ -76,8 +76,12 @@ weights_mapping = {
         'superpoint': Path(__file__).parent.parent / 'models/weights/superpoint_v1.pth',
         'indoor': Path(__file__).parent.parent / 'models/weights/superglue_indoor.pth',
         'outdoor': Path(__file__).parent.parent / 'models/weights/superglue_outdoor.pth',
-        'coco_homo': Path(__file__).parent.parent / 'models/weights/superglue_cocohomo.pt'
-    }
+        'coco_homo': Path(__file__).parent.parent / 'models/weights/superglue_cocohomo.pt',
+        'default': Path(__file__).parent.parent / 'output/train/default/weights/best.pt',
+        'default_no_pos': Path(__file__).parent.parent / 'output/train/default_no_pos/weights/best.pt',
+        'dist_enhance': Path(__file__).parent.parent / 'output/train/dist_enhance/weights/best.pt',
+        'dist_enhance_no_pos': Path(__file__).parent.parent / 'output/train/dist_enhance_no_pos/weights/best.pt'
+}
 
 test_images_mapping = {
     'coco_test_images': coco_test_images_url,

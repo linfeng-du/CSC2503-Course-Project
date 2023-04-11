@@ -66,6 +66,8 @@ def train(config, rank):
             pg0.append(v.weight)  # no decay
         elif hasattr(v, 'weight') and isinstance(v.weight, nn.Parameter):
             pg1.append(v.weight)  # apply decay
+        if hasattr(v, 'proj_dist'):
+            pg0.append(v.proj_dist)
     if config['optimizer_params']['opt_type'].lower() == "adam":
         optimizer = optim.Adam(pg0, lr=config['optimizer_params']['lr'], betas=(0.9, 0.999))  # adjust beta1 to momentum
     else:

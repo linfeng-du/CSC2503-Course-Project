@@ -238,7 +238,10 @@ if __name__ == '__main__':
             match_flag = (matches[ma_0] == ma_1)
             precision = match_flag.sum() / valid.sum()
             fn_flag = np.logical_and((matches != gt_match_vec), (matches == -1))
-            recall = match_flag.sum() / (match_flag.sum() + fn_flag.sum())
+            if match_flag.sum() + fn_flag.sum() == 0:
+                recall = 0
+            else:
+                recall = match_flag.sum() / (match_flag.sum() + fn_flag.sum())
             # Write the evaluation results to disk.
             out_eval = {'error_dlt': error_dlt,
                         'error_ransac': error_ransac,
