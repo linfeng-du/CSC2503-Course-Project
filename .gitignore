@@ -1,4 +1,21 @@
-__pycache__/
+.vscode/
 
+__pycache__/
+*.pyc
+*.DS_Store
+*.swp
+*.pt
+*.pth
+
+wandb/
+debug/
+output/
+images/
 dataset/
-runs/
+deprecated/
+dump_homo_pairs/
+dump_match_pairs/
+assets/coco_test_images/
+assets/indoor_test_images/
+assets/outdoor_test_images/
+assets/sample_dataset
